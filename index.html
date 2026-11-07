@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化学方程式听写系统（高考版）</title>
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --secondary-color: #00cec9;
+            --accent-color: #fd79a8;
+            --dark-color: #2d3436;
+            --light-color: #dfe6e9;
+            --combination-color: #74b9ff;
+            --decomposition-color: #a29bfe;
+            --replacement-color: #fdcb6e;
+            --double-color: #55efc4;
+            --other-color: #81ecec;
+            --neutral-color: #ffeaa7;
+            --substitute-color: #ff9f43;
+            --addition-color: #00d2d3;
+            --eliminate-color: #ff6b6b;
+            --polyadd-color: #54a0ff;
+            --polycond-color: #5f27cd;
+            --card-bg: rgba(255, 255, 255, 0.98);
+            --shadow-soft: 0 4px 20px rgba(108, 92, 231, 0.08);
+            --shadow-hover: 0 8px 30px rgba(108, 92, 231, 0.15);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c0c2d 0%, #1a1a4e 30%, #2d1b69 60%, #0f3460 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            perspective: 1000px;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+            border-radius: 4px;
+        }
+        
+        /* 方格网格背景 */
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 鼠标跟随光晕 */
+        .mouse-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(108, 92, 231, 0.18) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+            transform: translate(-50%, -50%);
+            left: 50%;
+            top: 50%;
+            transition: left 0.12s ease-out, top 0.12s ease-out;
+        }
+        
+        .container {
+            width: 98%;
+            max-width: 1700px;
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 25px 80px rgba(108, 92, 231, 0.25), 0 0 60px rgba(0, 206, 201, 0.1);
+            transform: rotateY(-2deg) rotateX(1deg);
+            transition: transform 0.5s;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            z-index: 1;
+            backdrop-filter: blur(10px);
+        }
+        
+        .container:hover {
+            transform: rotateY(-0.5deg) rotateX(0.5deg);
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #6c5ce7, #00cec9, #fd79a8, #fdcb6e, #55efc4);
+            z-index: 2;
+        }
+        
+        h1 {
+            text-align: center;
+            color: var(--dark-color);
+            margin-bottom: 24px;
+            font-size: 2.8rem;
+            letter-spacing: 2px;
+            position: relative;
+            padding-bottom: 18px;
+            background: linear-gradient(135deg, #6c5ce7, #00cec9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 30%;
+            width: 40%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            border-radius: 2px;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 28px;
+            flex: 1;
+        }
+        
+        .left-panel {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            transition: flex 0.3s;
+        }
+        
+        .left-panel.full-width {
+            flex: 5;
+        }
+        
+        .right-panel {
+            flex: 2;
+            background-color: rgba(248, 249, 250, 0.95);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: var(--shadow-soft);
+            max-height: 850px;
+            overflow-y: auto;
+            border-left: 6px solid var(--primary-color);
+            transition: all 0.3s;
+        }
+        
+        .right-panel.hidden {
+            display: none;
+        }
+
+        /* 反应类型介绍栏 */
+        .type-intro {
+            background: linear-gradient(135deg, rgba(108,92,231,0.08), rgba(0,206,201,0.08));
+            border: 1px solid rgba(108,92,231,0.2);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+            animation: fadeIn 0.3s ease;
+        }
+        .type-intro h4 {
+            color: var(--primary-color);
+            font-size: 1.15rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .type-intro .intro-desc {
+            color: #555;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 4px;
+        }
+        .type-intro .intro-formula {
+            font-family: 'Consolas', monospace;
+            color: var(--dark-color);
+            font-weight: 600;
+            background: rgba(255,255,255,0.7);
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+        }
+        .type-intro .intro-feature {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            padding: 22px;
+            background: linear-gradient(to right, #f8f9fa, #e9ecef);
+            border-radius: 16px;
+            box-shadow: var(--shadow-soft);
+        }
+        
+        .timer {
+            font-size: 2.6rem;
+            font-weight: bold;
+            color: var(--secondary-color);
+            background-color: white;
+            padding: 14px 28px;
+            border-radius: 14px;
+            box-shadow: 0 6px 20px rgba(0, 206, 201, 0.2);
+            min-width: 200px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 14px 24px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        #startBtn {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+        }
+        
+        #resetBtn {
+            background: linear-gradient(135deg, #e17055, #fd79a8);
+            color: white;
+        }
+        
+        #showAnswersBtn {
+            background: linear-gradient(135deg, #6c5ce7, #74b9ff);
+            color: white;
+        }
+        
+        #toggleLibraryBtn {
+            background: linear-gradient(135deg, #636e72, #b2bec3);
+            color: white;
+            padding: 10px 18px;
+            font-size: 0.95rem;
+        }
+        
+        #settingsBtn {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+            color: white;
+            padding: 10px 18px;
+            font-size: 0.95rem;
+        }
+        
+        .panels {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .panel {
+            background-color: white;
+            border-radius: 18px;
+            padding: 28px;
+            box-shadow: var(--shadow-soft);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-left: 6px solid var(--primary-color);
+        }
+        
+        .panel:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .question-panel {
+            background: linear-gradient(135deg, #f8f9fa, #ffffff);
+            min-height: 350px;
+        }
+        
+        .answer-panel {
+            background: linear-gradient(135deg, #f1f8ff, #e8f8f5);
+            min-height: 250px;
+            display: none;
+        }
+        
+        h2 {
+            color: var(--dark-color);
+            margin-bottom: 20px;
+            font-size: 1.7rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        h2 i {
+            color: var(--primary-color);
+        }
+        
+        .question-list {
+            list-style-type: none;
+            counter-reset: question-counter;
+        }
+        
+        .question-list li {
+            margin-bottom: 22px;
+            padding-left: 50px;
+            position: relative;
+            font-size: 1.4rem;
+            line-height: 1.8;
+            color: #34495e;
+            font-weight: 500;
+        }
+        
+        .question-list li::before {
+            counter-increment: question-counter;
+            content: counter(question-counter);
+            position: absolute;
+            left: 0;
+            top: 2px;
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #6c5ce7, #74b9ff);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 3px 10px rgba(108, 92, 231, 0.3);
+        }
+        
+        .answer-list {
+            list-style-type: none;
+        }
+        
+        .answer-list li {
+            margin-bottom: 22px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--secondary-color);
+            line-height: 1.8;
+            color: var(--dark-color);
+        }
+        
+        .answer-list strong {
+            font-size: 1.3rem;
+            color: var(--dark-color);
+        }
+        
+        .equation {
+            font-weight: bold;
+            color: var(--accent-color);
+            font-size: 2rem;
+            margin-top: 10px;
+            padding: 12px 18px;
+            background: linear-gradient(135deg, #fff9e6, #ffeaa7);
+            border-radius: 12px;
+            display: inline-block;
+            font-family: 'Consolas', 'Courier New', monospace;
+            letter-spacing: 1px;
+            text-align: center;
+            min-width: 60%;
+            box-shadow: 0 3px 8px rgba(253, 203, 110, 0.3);
+        }
+        
+        .counter {
+            display: inline-block;
+            margin-left: 15px;
+            font-size: 0.95rem;
+            color: #7f8c8d;
+            background-color: var(--light-color);
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        
+        .reaction-type {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 0.85rem;
+            padding: 4px 12px;
+            border-radius: 15px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .combination { background-color: var(--combination-color); }
+        .decomposition { background-color: var(--decomposition-color); }
+        .replacement { background-color: var(--replacement-color); }
+        .double-displacement { background-color: var(--double-color); }
+        .other { background-color: var(--other-color); }
+        .neutralization { background-color: var(--neutral-color); color: #333; }
+        .substitute { background-color: var(--substitute-color); }
+        .addition { background-color: var(--addition-color); }
+        .eliminate { background-color: var(--eliminate-color); }
+        .polyadd { background-color: var(--polyadd-color); }
+        .polycond { background-color: var(--polycond-color); }
+        
+        /* 方程式库样式 */
+        .library-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .library-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .library-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .search-box {
+            padding: 9px 16px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            width: 220px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s;
+            background: white;
+        }
+        
+        .search-box:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(108,92,231,0.15);
+        }
+        
+        .equation-item {
+            background-color: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 15px;
+            box-shadow: var(--shadow-soft);
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.3s;
+        }
+        
+        .equation-item:hover {
+            transform: translateX(6px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .equation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .equation-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--dark-color);
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        
+        .equation-desc {
+            color: #555;
+            margin-bottom: 10px;
+            line-height: 1.5;
+            font-size: 1.05rem;
+        }
+        
+        .equation-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .view-details {
+            background: linear-gradient(135deg, #6c5ce7, #74b9ff);
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            box-shadow: none;
+        }
+        
+        .view-details:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(108,92,231,0.3);
+        }
+        
+        .exam-points {
+            background-color: #fff9e6;
+            border-left: 4px solid #fdcb6e;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .exam-points.show {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+        
+        .exam-points h4 {
+            color: #d35400;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.05rem;
+        }
+        
+        .exam-points ul {
+            padding-left: 20px;
+            color: #555;
+        }
+        
+        .exam-points li {
+            margin-bottom: 5px;
+            line-height: 1.5;
+            font-size: 0.92rem;
+        }
+        
+        .total-count {
+            font-size: 1rem;
+            color: var(--dark-color);
+            font-weight: bold;
+            background-color: rgba(108, 92, 231, 0.1);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 7px 14px;
+            background-color: #ecf0f1;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+            box-shadow: none;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .filter-btn.active {
+            background: linear-gradient(135deg, #6c5ce7, #74b9ff);
+            color: white;
+            box-shadow: 0 4px 12px rgba(108,92,231,0.3);
+        }
+        .filter-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        /* 设置弹窗 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(6px);
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+        }
+        
+        .modal {
+            background: white;
+            border-radius: 22px;
+            padding: 35px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+            animation: modalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.9) translateY(-20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        
+        .modal h3 {
+            color: var(--dark-color);
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .setting-item {
+            margin-bottom: 22px;
+        }
+        
+        .setting-item label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--dark-color);
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .setting-item input[type="number"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .setting-item input[type="number"]:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(108,92,231,0.15);
+        }
+        
+        .setting-hint {
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 5px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+        
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            font-size: 1rem;
+        }
+        
+        #saveSettingsBtn {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+        }
+        
+        #cancelSettingsBtn {
+            background: linear-gradient(135deg, #b2bec3, #636e72);
+            color: white;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .right-panel {
+                max-height: 550px;
+            }
+            
+            .right-panel.hidden {
+                display: none;
+            }
+            
+            .left-panel.full-width {
+                flex: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+                transform: rotateY(-1deg) rotateX(0.5deg);
+                border-radius: 18px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .timer {
+                width: 100%;
+            }
+            
+            .buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            button {
+                flex: 1;
+                min-width: 120px;
+            }
+            
+            .library-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .library-controls {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .question-list li {
+                font-size: 1.2rem;
+                padding-left: 40px;
+            }
+            
+            .equation {
+                font-size: 1.6rem;
+            }
+        }
+        
+        .pulse {
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(253, 121, 168, 0.7); }
+            70% { box-shadow: 0 0 0 12px rgba(253, 121, 168, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(253, 121, 168, 0); }
+        }
+        
+        .chem-icon {
+            font-size: 1.4rem;
+            margin-right: 10px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- 方格网格背景 -->
+    <div class="grid-bg"></div>
+    <!-- 鼠标跟随光晕 -->
+    <div class="mouse-glow"></div>
+    
+    <div class="container">
+        <h1><i class="fas fa-flask chem-icon"></i>化学方程式听写系统（高考版）</h1>
+        
+        <div class="main-content">
+            <div class="left-panel" id="leftPanel">
+                <div class="controls">
+                    <div class="timer" id="timer">04:00</div>
+                    <div class="buttons">
+                        <button id="startBtn"><i class="fas fa-play"></i> 开始听写</button>
+                        <button id="resetBtn"><i class="fas fa-redo"></i> 重置</button>
+                        <button id="showAnswersBtn"><i class="fas fa-eye"></i> 显示答案</button>
+                        <button id="settingsBtn"><i class="fas fa-cog"></i> 设置</button>
+                        <button id="toggleLibraryBtn"><i class="fas fa-book"></i> 方程式库</button>
+                    </div>
+                </div>
+                
+                <div class="panels">
+                    <div class="panel question-panel">
+                        <h2><i class="fas fa-question-circle"></i> 听写题目 <span class="counter" id="questionCounter">随机选取5个方程式</span></h2>
+                        <ul class="question-list" id="questionList">
+                            <li>点击"开始听写"按钮开始练习</li>
+                            <li>系统将从方程式库中随机选取题目</li>
+                            <li>在规定时间内写出这些方程式</li>
+                            <li>完成后可以点击"显示答案"核对</li>
+                            <li>点击"设置"可以调整题目数量和时间</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="panel answer-panel" id="answerPanel">
+                        <h2><i class="fas fa-check-circle"></i> 参考答案</h2>
+                        <ul class="answer-list" id="answerList">
+                            <!-- 答案将在这里动态生成 -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-panel" id="rightPanel">
+                <div class="library-header">
+                    <div class="library-title">
+                        <h2><i class="fas fa-book-open"></i> 方程式库</h2>
+                        <div class="total-count">共 <span id="totalEquations">0</span> 个</div>
+                    </div>
+                    <div class="library-controls">
+                        <input type="text" class="search-box" id="searchBox" placeholder="搜索方程式或描述...">
+                        <button id="hideLibraryBtn"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">全部</button>
+                    <button class="filter-btn" data-filter="combination">化合反应</button>
+                    <button class="filter-btn" data-filter="decomposition">分解反应</button>
+                    <button class="filter-btn" data-filter="replacement">置换反应</button>
+                    <button class="filter-btn" data-filter="double-displacement">复分解反应</button>
+                    <button class="filter-btn" data-filter="other">其他反应</button>
+                    <button class="filter-btn" data-filter="substitute">取代反应</button>
+                    <button class="filter-btn" data-filter="addition">加成反应</button>
+                    <button class="filter-btn" data-filter="eliminate">消去反应</button>
+                    <button class="filter-btn" data-filter="polyadd">加聚反应</button>
+                    <button class="filter-btn" data-filter="polycond">缩聚反应</button>
+                </div>
+
+                <!-- 反应类型介绍栏 -->
+                <div id="typeIntro" class="type-intro">
+                    <h4><i class="fas fa-info-circle"></i> 全部反应类型</h4>
+                    <div class="intro-desc">包含高中阶段所有重要化学反应类型，覆盖无机与有机全部核心考点。</div>
+                </div>
+                
+                <div class="equation-library" id="equationLibrary">
+                    <!-- 方程式库将在这里动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 设置弹窗 -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <h3><i class="fas fa-cog" style="color: var(--primary-color);"></i> 听写设置</h3>
+            
+            <div class="setting-item">
+                <label for="questionCount">听写题目数量</label>
+                <input type="number" id="questionCount" min="1" max="50" value="5">
+                <div class="setting-hint">范围：1 ~ 50 个题目</div>
+            </div>
+            
+            <div class="setting-item">
+                <label for="timeLimit">听写时间（分钟）</label>
+                <input type="number" id="timeLimit" min="1" max="30" value="4">
+                <div class="setting-hint">范围：1 ~ 30 分钟</div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button id="cancelSettingsBtn">取消</button>
+                <button id="saveSettingsBtn">保存设置</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // ========== 反应类型介绍数据 ==========
+        const reactionIntro = {
+            all: {
+                title: "全部反应类型",
+                desc: "包含高中阶段所有重要化学反应类型，覆盖无机元素化学与有机化学全部核心考点。"
+            },
+            combination: {
+                title: "化合反应",
+                desc: "由两种或两种以上物质生成一种新物质的反应，是四大基本反应类型之一。",
+                formula: "通式：A + B → AB",
+                feature: "特点：多变一；部分化合反应为氧化还原反应，元素化合价发生改变。"
+            },
+            decomposition: {
+                title: "分解反应",
+                desc: "由一种物质生成两种或两种以上其它新物质的反应，是四大基本反应类型之一。",
+                formula: "通式：AB → A + B",
+                feature: "特点：一变多；多数分解反应需要加热、通电等条件，部分为氧化还原反应。"
+            },
+            replacement: {
+                title: "置换反应",
+                desc: "一种单质与一种化合物反应，生成另一种单质和另一种化合物的反应，是四大基本反应类型之一。",
+                formula: "通式：A + BC → AC + B",
+                feature: "特点：一定属于氧化还原反应；分为金属置换、非金属置换两大类，遵循金属活动性顺序。"
+            },
+            "double-displacement": {
+                title: "复分解反应",
+                desc: "两种化合物互相交换成分，生成另外两种化合物的反应，是四大基本反应类型之一。",
+                formula: "通式：AB + CD → AD + CB",
+                feature: "特点：一定不是氧化还原反应；发生条件：生成物中有沉淀、气体或水。"
+            },
+            other: {
+                title: "其他反应",
+                desc: "不属于四大基本反应类型的反应，多为复杂氧化还原反应，是高考高频考点。",
+                feature: "特点：涵盖氧化还原、非基本类型反应；配平、电子转移计算是高考核心考点。"
+            },
+            substitute: {
+                title: "取代反应",
+                desc: "有机物分子里的某些原子或原子团被其他原子或原子团所替代的反应，是有机核心反应类型。",
+                formula: "通式：A-B + C-D → A-C + B-D",
+                feature: "特点：有上有下；包括卤代、硝化、酯化、水解、磺化等子类反应。"
+            },
+            addition: {
+                title: "加成反应",
+                desc: "有机物分子中双键（或三键）两端的碳原子与其他原子或原子团直接结合生成新化合物的反应。",
+                formula: "通式：A=B + C-D → A-C-B-D",
+                feature: "特点：只上不下；不饱和键变为饱和键；不生成小分子副产物。"
+            },
+            eliminate: {
+                title: "消去反应",
+                desc: "有机化合物在一定条件下，从一个分子中脱去一个或几个小分子（如H₂O、HX），生成含不饱和键化合物的反应。",
+                formula: "通式：R-CH₂-CH₂X → R-CH=CH₂ + HX",
+                feature: "特点：只下不上；生成碳碳双键/三键；邻位碳原子必须有氢原子才能发生消去。"
+            },
+            polyadd: {
+                title: "加聚反应",
+                desc: "由不饱和的单体通过加成聚合生成高分子化合物的反应，属于聚合反应的一种。",
+                formula: "通式：n A=B → -[-A-B-]n-",
+                feature: "特点：无小分子副产物生成；单体含碳碳双键/三键；产物只有高分子化合物。"
+            },
+            polycond: {
+                title: "缩聚反应",
+                desc: "单体间相互反应生成高分子化合物，同时还生成小分子（如水、氨、氯化氢等）的反应，属于聚合反应的一种。",
+                feature: "特点：有小分子副产物生成；单体含两个或多个官能团；高分子链两端有端基原子团。"
+            }
+        };
+
+        // 完整化学方程式库
+        const equationLibrary = [
+            // ========== 原有内容 原封不动保留 ==========
+            // 一、化合反应
+            { 
+                description: "镁在空气中燃烧", 
+                equation: "2Mg + O₂ 点燃 2MgO",
+                type: "combination",
+                examPoints: ["实验现象：发出耀眼白光，生成白色固体", "验证质量守恒定律", "在空气中燃烧，不需要纯氧"]
+            },
+            { 
+                description: "铁在氧气中燃烧", 
+                equation: "3Fe + 2O₂ 点燃 Fe₃O₄",
+                type: "combination",
+                examPoints: ["实验现象：剧烈燃烧，火星四射，生成黑色固体", "注意：铁在空气中不燃烧，在纯氧中燃烧", "集气瓶底放少量水或细沙的原因"]
+            },
+            { 
+                description: "铜在空气中加热", 
+                equation: "2Cu + O₂ △ 2CuO",
+                type: "combination",
+                examPoints: ["实验现象：红色固体变黑色", "加热条件，不是点燃", "铜的氧化过程"]
+            },
+            { 
+                description: "铝在空气中氧化", 
+                equation: "4Al + 3O₂ = 2Al₂O₃",
+                type: "combination",
+                examPoints: ["形成致密氧化膜，耐腐蚀", "铝制品不宜用钢刷擦洗的原因", "金属的缓慢氧化"]
+            },
+            { 
+                description: "氢气在空气中燃烧", 
+                equation: "2H₂ + O₂ 点燃 2H₂O",
+                type: "combination",
+                examPoints: ["实验现象：淡蓝色火焰，干冷烧杯内壁有水雾", "最清洁的能源", "点燃前必须检验纯度"]
+            },
+            { 
+                description: "红磷（白磷）在空气中燃烧", 
+                equation: "4P + 5O₂ 点燃 2P₂O₅",
+                type: "combination",
+                examPoints: ["实验现象：产生大量白烟", "测定空气中氧气体积分数的原理", "集气瓶中预先放水的原因"]
+            },
+            { 
+                description: "硫在空气/氧气中燃烧", 
+                equation: "S + O₂ 点燃 SO₂",
+                type: "combination",
+                examPoints: ["空气中淡蓝色火焰，氧气中蓝紫色火焰", "生成有刺激性气味气体", "集气瓶底放水吸收SO₂，防止污染"]
+            },
+            { 
+                description: "碳在氧气中充分燃烧", 
+                equation: "C + O₂ 点燃 CO₂",
+                type: "combination",
+                examPoints: ["实验现象：发出白光，放热", "生成能使澄清石灰水变浑浊的气体", "充分燃烧的产物"]
+            },
+            { 
+                description: "碳在氧气中不充分燃烧", 
+                equation: "2C + O₂ 点燃 2CO",
+                type: "combination",
+                examPoints: ["不充分燃烧的产物", "CO有毒，煤气中毒主要成分", "氧气不足时的反应"]
+            },
+            { 
+                description: "一氧化碳在氧气中燃烧", 
+                equation: "2CO + O₂ 点燃 2CO₂",
+                type: "combination",
+                examPoints: ["实验现象：蓝色火焰", "CO的可燃性", "尾气处理：点燃防止污染"]
+            },
+            { 
+                description: "二氧化碳与水反应", 
+                equation: "CO₂ + H₂O = H₂CO₃",
+                type: "combination",
+                examPoints: ["紫色石蕊溶液变红，碳酸使石蕊变色", "碳酸不稳定，易分解", "碳酸饮料的原理"]
+            },
+            { 
+                description: "二氧化碳与碳在高温下反应", 
+                equation: "CO₂ + C 高温 2CO",
+                type: "combination",
+                examPoints: ["吸热反应", "高炉炼铁辅助反应", "CO的工业制法之一"]
+            },
+            { 
+                description: "生石灰与水反应", 
+                equation: "CaO + H₂O = Ca(OH)₂",
+                type: "combination",
+                examPoints: ["放热反应", "生石灰作干燥剂", "生成熟石灰（氢氧化钙）"]
+            },
+            
+            // 二、分解反应
+            { 
+                description: "过氧化氢制氧气", 
+                equation: "2H₂O₂ MnO₂ 2H₂O + O₂↑",
+                type: "decomposition",
+                examPoints: ["实验室制氧气方法之一", "固液不加热型", "MnO₂作催化剂", "分液漏斗的优点"]
+            },
+            { 
+                description: "氯酸钾制氧气", 
+                equation: "2KClO₃ MnO₂ △ 2KCl + 3O₂↑",
+                type: "decomposition",
+                examPoints: ["实验室制氧气方法之一", "固固加热型", "MnO₂作催化剂", "实验注意事项"]
+            },
+            { 
+                description: "高锰酸钾制氧气", 
+                equation: "2KMnO₄ △ K₂MnO₄ + MnO₂ + O₂↑",
+                type: "decomposition",
+                examPoints: ["实验室制氧气常用方法", "固固加热型，试管口放棉花", "实验步骤：查、装、定、点、收、离、熄"]
+            },
+            { 
+                description: "水的电解", 
+                equation: "2H₂O 通电 2H₂↑ + O₂↑",
+                type: "decomposition",
+                examPoints: ["正氧负氢，体积比 1:2，质量比 8:1", "证明水的组成", "增强导电性：加稀硫酸或氢氧化钠"]
+            },
+            { 
+                description: "碳酸分解", 
+                equation: "H₂CO₃ = H₂O + CO₂↑",
+                type: "decomposition",
+                examPoints: ["石蕊溶液变红后又变紫的原因", "碳酸的不稳定性", "加热含碳酸的溶液现象"]
+            },
+            { 
+                description: "高温煅烧石灰石", 
+                equation: "CaCO₃ 高温 CaO + CO₂↑",
+                type: "decomposition",
+                examPoints: ["工业制生石灰、二氧化碳", "检验产物：生石灰加水放热，二氧化碳使石灰水变浑", "工业制备原理"]
+            },
+            { 
+                description: "碳酸氢钠受热分解", 
+                equation: "2NaHCO₃ △ Na₂CO₃ + H₂O + CO₂↑",
+                type: "decomposition",
+                examPoints: ["发酵粉的原理", "治疗胃酸过多后产生胀气的原因", "鉴别NaHCO₃和Na₂CO₃的方法"]
+            },
+            { 
+                description: "碳酸氢铵受热分解", 
+                equation: "NH₄HCO₃ △ NH₃↑ + H₂O↑ + CO₂↑",
+                type: "decomposition",
+                examPoints: ["氮肥保存需阴凉密封的原因", "'气肥'消失的原因", "实验现象：固体消失，三种产物"]
+            },
+            
+            // 三、置换反应
+            { 
+                description: "锌与稀硫酸反应（实验室制氢气）", 
+                equation: "Zn + H₂SO₄ = ZnSO₄ + H₂↑",
+                type: "replacement",
+                examPoints: ["实验室制氢气，固液不加热型", "金属与酸反应的条件：金属在氢前", "反应速率适中"]
+            },
+            { 
+                description: "锌与稀盐酸反应", 
+                equation: "Zn + 2HCl = ZnCl₂ + H₂↑",
+                type: "replacement",
+                examPoints: ["实验室制氢气方法之一", "金属与酸反应", "比较金属活动性强弱"]
+            },
+            { 
+                description: "铁与稀硫酸反应", 
+                equation: "Fe + H₂SO₄ = FeSO₄ + H₂↑",
+                type: "replacement",
+                examPoints: ["溶液由无色变浅绿色", "铁与酸反应生成亚铁盐", "反应速率较慢"]
+            },
+            { 
+                description: "铁与稀盐酸反应", 
+                equation: "Fe + 2HCl = FeCl₂ + H₂↑",
+                type: "replacement",
+                examPoints: ["溶液由无色变浅绿色", "生成亚铁盐(Fe²⁺)", "金属活动性顺序应用"]
+            },
+            { 
+                description: "镁与稀硫酸反应", 
+                equation: "Mg + H₂SO₄ = MgSO₄ + H₂↑",
+                type: "replacement",
+                examPoints: ["反应最剧烈", "比较金属活动性：Mg > Zn > Fe", "金属与酸反应速率的比较"]
+            },
+            { 
+                description: "镁与稀盐酸反应", 
+                equation: "Mg + 2HCl = MgCl₂ + H₂↑",
+                type: "replacement",
+                examPoints: ["反应剧烈，产生大量气泡", "金属活动性顺序的应用", "实验室制氢气可选方法"]
+            },
+            { 
+                description: "铝与稀硫酸反应", 
+                equation: "2Al + 3H₂SO₄ = Al₂(SO₄)₃ + 3H₂↑",
+                type: "replacement",
+                examPoints: ["反应初期较慢：氧化膜阻碍", "金属活动性：Al > Zn > Fe", "实际应用"]
+            },
+            { 
+                description: "铝与稀盐酸反应", 
+                equation: "2Al + 6HCl = 2AlCl₃ + 3H₂↑",
+                type: "replacement",
+                examPoints: ["铝与酸反应的实际应用", "反应速率：初期慢，后期快", "金属活动性顺序"]
+            },
+            { 
+                description: "铁与硫酸铜溶液反应", 
+                equation: "Fe + CuSO₄ = FeSO₄ + Cu",
+                type: "replacement",
+                examPoints: ["湿法炼铜原理", "蓝色溶液变浅绿色，有红色固体析出", "金属活动性：Fe > Cu"]
+            },
+            { 
+                description: "铜与硝酸银溶液反应", 
+                equation: "Cu + 2AgNO₃ = Cu(NO₃)₂ + 2Ag",
+                type: "replacement",
+                examPoints: ["无色溶液变蓝色，有银白色固体析出", "金属活动性：Cu > Ag", "'银树'实验"]
+            },
+            { 
+                description: "铝与硫酸铜溶液反应", 
+                equation: "2Al + 3CuSO₄ = Al₂(SO₄)₃ + 3Cu",
+                type: "replacement",
+                examPoints: ["蓝色溶液变无色，有红色固体析出", "验证金属活动性：Al > Cu", "反应速率较快"]
+            },
+            { 
+                description: "锌与硫酸铜溶液反应", 
+                equation: "Zn + CuSO₄ = ZnSO₄ + Cu",
+                type: "replacement",
+                examPoints: ["验证金属活动性：Zn > Cu", "镀铜原理", "蓝色溶液褪色，有红色固体析出"]
+            },
+            { 
+                description: "碳还原氧化铜", 
+                equation: "C + 2CuO 高温 2Cu + CO₂↑",
+                type: "replacement",
+                examPoints: ["黑色粉末变红色，生成能使澄清石灰水变浑浊的气体", "碳的还原性", "结束操作：先撤导管，后灭酒精灯"]
+            },
+            { 
+                description: "碳还原氧化铁", 
+                equation: "3C + 2Fe₂O₃ 高温 4Fe + 3CO₂↑",
+                type: "replacement",
+                examPoints: ["工业炼铁辅助反应", "碳的还原性应用", "高炉炼铁中的反应"]
+            },
+            
+            // 四、其他反应（非基本反应类型）
+            { 
+                description: "一氧化碳还原氧化铜", 
+                equation: "CO + CuO △ Cu + CO₂",
+                type: "other",
+                examPoints: ["黑色粉末变红色，尾气需处理，防止中毒", "CO的还原性", "操作顺序：先通CO，后加热；先熄灯，后停通CO"]
+            },
+            { 
+                description: "一氧化碳还原氧化铁", 
+                equation: "Fe₂O₃ + 3CO 高温 2Fe + 3CO₂",
+                type: "other",
+                examPoints: ["工业炼铁核心反应，红棕色粉末变黑色", "尾气处理：点燃或收集", "高炉炼铁原理"]
+            },
+            { 
+                description: "二氧化碳通入澄清石灰水", 
+                equation: "CO₂ + Ca(OH)₂ = CaCO₃↓ + H₂O",
+                type: "other",
+                examPoints: ["检验CO₂，澄清石灰水变浑浊", "解释石灰浆抹墙变硬、久置石灰水试剂瓶壁有白膜", "非基本反应类型"]
+            },
+            { 
+                description: "甲烷在空气中燃烧", 
+                equation: "CH₄ + 2O₂ 点燃 CO₂ + 2H₂O",
+                type: "other",
+                examPoints: ["天然气、沼气燃烧，蓝色火焰", "清洁化石燃料", "检验产物：干冷烧杯内壁有水雾，生成气体使石灰水变浑"]
+            },
+            { 
+                description: "酒精（乙醇）在空气中燃烧", 
+                equation: "C₂H₅OH + 3O₂ 点燃 2CO₂ + 3H₂O",
+                type: "other",
+                examPoints: ["酒精灯、燃料燃烧", "可再生能源", "检验产物：干冷烧杯内壁有水雾，生成气体使石灰水变浑"]
+            },
+            
+            // 五、酸的化学性质（复分解反应）
+            { 
+                description: "盐酸除铁锈（氧化铁）", 
+                equation: "Fe₂O₃ + 6HCl = 2FeCl₃ + 3H₂O",
+                type: "double-displacement",
+                examPoints: ["红棕色铁锈消失，溶液变黄色", "除铁锈的原理", "不能长时间浸泡：酸会与内部铁反应"]
+            },
+            { 
+                description: "硫酸除铁锈", 
+                equation: "Fe₂O₃ + 3H₂SO₄ = Fe₂(SO₄)₃ + 3H₂O",
+                type: "double-displacement",
+                examPoints: ["红棕色铁锈消失，溶液变黄色", "工业除锈应用", "生成铁盐(Fe³⁺)，溶液呈黄色"]
+            },
+            { 
+                description: "盐酸与氧化铜反应", 
+                equation: "CuO + 2HCl = CuCl₂ + H₂O",
+                type: "double-displacement",
+                examPoints: ["黑色粉末消失，溶液变蓝色", "金属氧化物与酸反应", "制备铜盐的方法"]
+            },
+            { 
+                description: "硫酸与氧化铜反应", 
+                equation: "CuO + H₂SO₄ = CuSO₄ + H₂O",
+                type: "double-displacement",
+                examPoints: ["黑色粉末消失，溶液变蓝色", "制备CuSO₄的方法", "金属氧化物与酸反应的通式"]
+            },
+            { 
+                description: "氧化铝与盐酸反应", 
+                equation: "Al₂O₃ + 6HCl = 2AlCl₃ + 3H₂O",
+                type: "double-displacement",
+                examPoints: ["铝制品耐腐蚀，酸能破坏氧化膜", "两性氧化物的性质", "实际应用：铝制品不宜盛酸性物质"]
+            },
+            { 
+                description: "氧化铝与硫酸反应", 
+                equation: "Al₂O₃ + 3H₂SO₄ = Al₂(SO₄)₃ + 3H₂O",
+                type: "double-displacement",
+                examPoints: ["铝制品不宜用酸清洁的原因", "两性氧化物的性质", "工业制备铝盐"]
+            },
+            { 
+                description: "盐酸与氢氧化钠反应（中和反应）", 
+                equation: "NaOH + HCl = NaCl + H₂O",
+                type: "double-displacement",
+                examPoints: ["无明显现象，需用指示剂判断", "中和反应的典型代表", "应用：调节pH、处理废水"]
+            },
+            { 
+                description: "硫酸与氢氧化钠反应", 
+                equation: "2NaOH + H₂SO₄ = Na₂SO₄ + 2H₂O",
+                type: "double-displacement",
+                examPoints: ["中和反应", "无明显现象，需用指示剂", "实际应用"]
+            },
+            { 
+                description: "盐酸与氢氧化钙反应", 
+                equation: "Ca(OH)₂ + 2HCl = CaCl₂ + 2H₂O",
+                type: "double-displacement",
+                examPoints: ["中和酸性土壤、处理废水", "改良酸性土壤的原理", "无明显现象"]
+            },
+            { 
+                description: "硫酸与氢氧化钙反应", 
+                equation: "Ca(OH)₂ + H₂SO₄ = CaSO₄ + 2H₂O",
+                type: "double-displacement",
+                examPoints: ["改良酸性土壤", "工业废水处理", "生成微溶物CaSO₄"]
+            },
+            { 
+                description: "盐酸与氢氧化铁反应", 
+                equation: "Fe(OH)₃ + 3HCl = FeCl₃ + 3H₂O",
+                type: "double-displacement",
+                examPoints: ["红褐色沉淀消失，溶液变黄色", "碱与酸的中和反应", "制备铁盐的方法"]
+            },
+            { 
+                description: "硫酸与氢氧化铜反应", 
+                equation: "Cu(OH)₂ + H₂SO₄ = CuSO₄ + 2H₂O",
+                type: "double-displacement",
+                examPoints: ["蓝色沉淀消失，溶液变蓝色", "碱与酸的中和反应", "制备铜盐的方法"]
+            },
+            { 
+                description: "盐酸与碳酸钠反应", 
+                equation: "Na₂CO₃ + 2HCl = 2NaCl + H₂O + CO₂↑",
+                type: "double-displacement",
+                examPoints: ["泡沫灭火器原理，有气泡产生", "鉴别碳酸盐的方法", "不用实验室制CO₂的原因：反应太快"]
+            },
+            { 
+                description: "盐酸与碳酸氢钠反应", 
+                equation: "NaHCO₃ + HCl = NaCl + H₂O + CO₂↑",
+                type: "double-displacement",
+                examPoints: ["治疗胃酸过多，有气泡产生", "产生气体的缺点：可能引起胀气", "发酵粉的主要成分"]
+            },
+            { 
+                description: "盐酸与碳酸钙反应", 
+                equation: "CaCO₃ + 2HCl = CaCl₂ + H₂O + CO₂↑",
+                type: "double-displacement",
+                examPoints: ["实验室制CO₂，大理石/石灰石与稀盐酸", "不能用稀硫酸的原因：生成微溶CaSO₄覆盖表面", "不能用浓盐酸的原因：挥发性强使CO₂不纯"]
+            },
+            { 
+                description: "硫酸与碳酸钠反应", 
+                equation: "Na₂CO₃ + H₂SO₄ = Na₂SO₄ + H₂O + CO₂↑",
+                type: "double-displacement",
+                examPoints: ["有气泡产生", "鉴别碳酸盐", "复分解反应条件：生成气体"]
+            },
+            { 
+                description: "盐酸与硝酸银反应", 
+                equation: "AgNO₃ + HCl = AgCl↓ + HNO₃",
+                type: "double-displacement",
+                examPoints: ["生成白色不溶于稀硝酸的沉淀，检验Cl⁻", "离子检验的重要反应", "白色沉淀不溶于稀硝酸"]
+            },
+            { 
+                description: "硫酸与氯化钡反应", 
+                equation: "BaCl₂ + H₂SO₄ = BaSO₄↓ + 2HCl",
+                type: "double-displacement",
+                examPoints: ["生成白色不溶于稀硝酸的沉淀，检验SO₄²⁻", "离子检验的重要反应", "先加稀盐酸排除CO₃²⁻等干扰"]
+            },
+            
+            // 六、碱的化学性质
+            { 
+                description: "氢氧化钠与二氧化碳反应", 
+                equation: "2NaOH + CO₂ = Na₂CO₃ + H₂O",
+                type: "other",
+                examPoints: ["吸收CO₂，氢氧化钠变质的原因", "无明显现象", "NaOH固体必须密封保存"]
+            },
+            { 
+                description: "氢氧化钠与二氧化硫反应", 
+                equation: "2NaOH + SO₂ = Na₂SO₃ + H₂O",
+                type: "other",
+                examPoints: ["吸收有害气体", "减少酸雨的原理", "碱与非金属氧化物反应"]
+            },
+            { 
+                description: "氢氧化钠与三氧化硫反应", 
+                equation: "2NaOH + SO₃ = Na₂SO₄ + H₂O",
+                type: "other",
+                examPoints: ["碱与非金属氧化物反应", "工业制备硫酸钠", "反应剧烈"]
+            },
+            { 
+                description: "氢氧化钠与硫酸铜反应", 
+                equation: "2NaOH + CuSO₄ = Cu(OH)₂↓ + Na₂SO₄",
+                type: "double-displacement",
+                examPoints: ["生成蓝色沉淀", "碱与盐反应的条件：生成沉淀", "制取Cu(OH)₂的方法"]
+            },
+            { 
+                description: "氢氧化钠与氯化铁反应", 
+                equation: "3NaOH + FeCl₃ = Fe(OH)₃↓ + 3NaCl",
+                type: "double-displacement",
+                examPoints: ["生成红褐色沉淀", "检验Fe³⁺的常用方法", "碱与盐反应的条件：生成沉淀"]
+            },
+            { 
+                description: "氢氧化钙与碳酸钠反应", 
+                equation: "Ca(OH)₂ + Na₂CO₃ = CaCO₃↓ + 2NaOH",
+                type: "double-displacement",
+                examPoints: ["工业制氢氧化钠，纯碱制烧碱", "生成白色沉淀", "碱与盐反应的条件：生成沉淀"]
+            },
+            { 
+                description: "氢氧化钙与硫酸铜反应", 
+                equation: "Ca(OH)₂ + CuSO₄ = Cu(OH)₂↓ + CaSO₄",
+                type: "double-displacement",
+                examPoints: ["波尔多液的配制原理", "生成蓝色沉淀", "农业杀菌剂"]
+            },
+            { 
+                description: "氢氧化钙与氯化铁反应", 
+                equation: "3Ca(OH)₂ + 2FeCl₃ = 2Fe(OH)₃↓ + 3CaCl₂",
+                type: "double-displacement",
+                examPoints: ["生成红褐色沉淀", "检验Fe³⁺", "碱与盐反应"]
+            },
+            // ==========【高中无机补充 原有保留】 ==========
+            // --- 钠及其化合物 ---
+            {
+                description: "钠在氧气中燃烧",
+                equation: "2Na + O₂ △ Na₂O₂",
+                type: "combination",
+                examPoints: ["高考考点：黄色火焰，生成淡黄色固体Na₂O₂", "区分：常温生成Na₂O，加热/点燃生成Na₂O₂", "参考：人教版必修第一册P35"]
+            },
+            {
+                description: "钠与水反应",
+                equation: "2Na + 2H₂O = 2NaOH + H₂↑",
+                type: "replacement",
+                examPoints: ["高考考点：浮、熔、游、响、红五现象", "离子方程式必背：2Na + 2H₂O = 2Na⁺ + 2OH⁻ + H₂↑", "参考：人教版必修第一册P34"]
+            },
+            {
+                description: "过氧化钠与水反应",
+                equation: "2Na₂O₂ + 2H₂O = 4NaOH + O₂↑",
+                type: "other",
+                examPoints: ["高考考点：歧化反应，Na₂O₂既是氧化剂又是还原剂", "电子转移：2e⁻；NA题型高频", "参考：人教版必修第一册P36"]
+            },
+            {
+                description: "过氧化钠与二氧化碳反应",
+                equation: "2Na₂O₂ + 2CO₂ = 2Na₂CO₃ + O₂",
+                type: "other",
+                examPoints: ["高考考点：呼吸面具供氧剂原理", "固体增重规律：Δm = 2×CO₂ - O₂", "参考：人教版必修第一册P36"]
+            },
+            {
+                description: "碳酸氢钠受热分解",
+                equation: "2NaHCO₃ △ Na₂CO₃ + H₂O + CO₂↑",
+                type: "decomposition",
+                examPoints: ["高考考点：固体热稳定性Na₂CO₃ > NaHCO₃", "除杂：Na₂CO₃固体中混有NaHCO₃用加热法", "注意：溶液中NaHCO₃加热不分解", "参考：人教版必修第一册P48"]
+            },
+            // --- 铝及其化合物 ---
+            {
+                description: "铝与氢氧化钠溶液反应",
+                equation: "2Al + 2NaOH + 2H₂O = 2NaAlO₂ + 3H₂↑",
+                type: "other",
+                examPoints: ["高考考点：铝是两性金属，与强碱反应放H₂", "离子方程式：2Al + 2OH⁻ + 2H₂O = 2AlO₂⁻ + 3H₂↑", "参考：人教版必修第一册P72"]
+            },
+            {
+                description: "氧化铝与盐酸反应",
+                equation: "Al₂O₃ + 6HCl = 2AlCl₃ + 3H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：Al₂O₃两性氧化物，既溶于酸又溶于碱", "工业电解熔融Al₂O₃制铝", "参考：人教版必修第一册P75"]
+            },
+            {
+                description: "氧化铝与氢氧化钠反应",
+                equation: "Al₂O₃ + 2NaOH = 2NaAlO₂ + H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：两性氧化物与强碱反应", "离子方程式：Al₂O₃ + 2OH⁻ = 2AlO₂⁻ + H₂O", "参考：人教版必修第一册P75"]
+            },
+            {
+                description: "氢氧化铝与盐酸反应",
+                equation: "Al(OH)₃ + 3HCl = AlCl₃ + 3H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：Al(OH)₃两性氢氧化物", "治疗胃酸过多", "参考：人教版必修第一册P76"]
+            },
+            {
+                description: "氢氧化铝与氢氧化钠反应",
+                equation: "Al(OH)₃ + NaOH = NaAlO₂ + 2H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：Al(OH)₃溶于强碱，不溶于弱碱（氨水）", "实验室制Al(OH)₃用氨水不用NaOH", "参考：人教版必修第一册P76"]
+            },
+            {
+                description: "氯化铝与过量氨水反应",
+                equation: "AlCl₃ + 3NH₃·H₂O = Al(OH)₃↓ + 3NH₄Cl",
+                type: "double-displacement",
+                examPoints: ["高考考点：实验室制Al(OH)₃，沉淀不溶于过量氨水", "离子方程式：Al³⁺ + 3NH₃·H₂O = Al(OH)₃↓ + 3NH₄⁺", "参考：人教版必修第一册P76"]
+            },
+            // --- 铁及其化合物 ---
+            {
+                description: "铁与水蒸气高温反应",
+                equation: "3Fe + 4H₂O(g) 高温 Fe₃O₄ + 4H₂",
+                type: "replacement",
+                examPoints: ["高考考点：水蒸气g标，生成Fe₃O₄不是Fe₂O₃", "H₂不标↑（反应物有水蒸气）", "参考：人教版必修第一册P66"]
+            },
+            {
+                description: "氯化亚铁与氯气反应",
+                equation: "2FeCl₂ + Cl₂ = 2FeCl₃",
+                type: "combination",
+                examPoints: ["高考考点：Fe²⁺被Cl₂氧化为Fe³⁺", "离子方程式：2Fe²⁺ + Cl₂ = 2Fe³⁺ + 2Cl⁻", "参考：人教版必修第一册P82"]
+            },
+            {
+                description: "氯化铁与铁粉反应",
+                equation: "2FeCl₃ + Fe = 3FeCl₂",
+                type: "combination",
+                examPoints: ["高考考点：Fe³⁺被Fe还原为Fe²⁺", "离子方程式：2Fe³⁺ + Fe = 3Fe²⁺", "保存FeCl₂溶液加铁粉防氧化", "参考：人教版必修第一册P82"]
+            },
+            {
+                description: "氯化铁与铜反应",
+                equation: "2FeCl₃ + Cu = 2FeCl₂ + CuCl₂",
+                type: "other",
+                examPoints: ["高考考点：印刷电路板原理", "离子方程式：2Fe³⁺ + Cu = 2Fe²⁺ + Cu²⁺", "参考：人教版必修第一册P83"]
+            },
+            {
+                description: "氢氧化亚铁被氧化",
+                equation: "4Fe(OH)₂ + O₂ + 2H₂O = 4Fe(OH)₃",
+                type: "combination",
+                examPoints: ["高考考点：白色沉淀→灰绿色→红褐色", "Fe(OH)₂强还原性，极易被氧化", "参考：人教版必修第一册P80"]
+            },
+            // --- 硅及其化合物 ---
+            {
+                description: "二氧化硅与氢氧化钠反应",
+                equation: "SiO₂ + 2NaOH = Na₂SiO₃ + H₂O",
+                type: "other",
+                examPoints: ["高考考点：碱溶液不能用玻璃塞", "Na₂SiO₃水玻璃，粘合剂", "SiO₂是酸性氧化物", "参考：人教版必修第二册P45"]
+            },
+            {
+                description: "二氧化硅与氢氟酸反应",
+                equation: "SiO₂ + 4HF = SiF₄↑ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：唯一与SiO₂反应的酸", "雕刻玻璃原理", "参考：人教版必修第二册P45"]
+            },
+            {
+                description: "工业制粗硅",
+                equation: "SiO₂ + 2C 高温 Si + 2CO↑",
+                type: "replacement",
+                examPoints: ["高考考点：产物是CO不是CO₂", "工业制硅第一步", "参考：人教版必修第二册P46"]
+            },
+            // --- 氯及其化合物 ---
+            {
+                description: "氯气与水反应",
+                equation: "Cl₂ + H₂O = HCl + HClO",
+                type: "other",
+                examPoints: ["高考考点：可逆反应，氯水成分三分子四离子", "HClO漂白性、强氧化性，见光分解", "参考：人教版必修第一册P42"]
+            },
+            {
+                description: "氯气与氢氧化钠反应",
+                equation: "Cl₂ + 2NaOH = NaCl + NaClO + H₂O",
+                type: "other",
+                examPoints: ["高考考点：制漂白液，84消毒液原理", "离子方程式：Cl₂ + 2OH⁻ = Cl⁻ + ClO⁻ + H₂O", "参考：人教版必修第一册P43"]
+            },
+            {
+                description: "氯气与氢氧化钙反应",
+                equation: "2Cl₂ + 2Ca(OH)₂ = CaCl₂ + Ca(ClO)₂ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：制漂白粉，有效成分Ca(ClO)₂", "漂白粉生效：Ca(ClO)₂ + CO₂ + H₂O = CaCO₃↓ + 2HClO", "参考：人教版必修第一册P43"]
+            },
+            {
+                description: "实验室制氯气",
+                equation: "MnO₂ + 4HCl(浓) △ MnCl₂ + Cl₂↑ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：MnO₂作氧化剂，浓HCl作还原剂", "离子方程式：MnO₂ + 4H⁺ + 2Cl⁻ △ Mn²⁺ + Cl₂↑ + 2H₂O", "必须浓盐酸，稀盐酸不反应", "参考：人教版必修第一册P46"]
+            },
+            // --- 硫及其化合物 ---
+            {
+                description: "二氧化硫与硫化氢反应",
+                equation: "SO₂ + 2H₂S = 3S↓ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：归中反应，SO₂氧化性", "现象：淡黄色沉淀", "参考：人教版必修第二册P36"]
+            },
+            {
+                description: "铜与浓硫酸反应",
+                equation: "Cu + 2H₂SO₄(浓) △ CuSO₄ + SO₂↑ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：浓硫酸强氧化性，必须加热", "硫酸既表现酸性又表现强氧化性", "稀硫酸与Cu不反应", "参考：人教版必修第二册P39"]
+            },
+            {
+                description: "碳与浓硫酸反应",
+                equation: "C + 2H₂SO₄(浓) △ CO₂↑ + 2SO₂↑ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：浓硫酸强氧化性，产物检验顺序", "先检验SO₂→除SO₂→检验SO₂除尽→检验CO₂", "参考：人教版必修第二册P39"]
+            },
+            // --- 氮及其化合物 ---
+            {
+                description: "氮气与氢气合成氨",
+                equation: "N₂ + 3H₂ ⇌[高温高压][催化剂] 2NH₃",
+                type: "combination",
+                examPoints: ["高考考点：工业合成氨，可逆反应", "条件：高温高压催化剂，缺一不可", "版本差异：旧教材写等号，2019新教材用可逆号", "参考：人教版必修第二册P14"]
+            },
+            {
+                description: "氨气与水反应",
+                equation: "NH₃ + H₂O ⇌ NH₃·H₂O",
+                type: "combination",
+                examPoints: ["高考考点：氨水弱碱性，使酚酞变红", "NH₃是唯一碱性气体", "参考：人教版必修第二册P16"]
+            },
+            {
+                description: "氨气与氯化氢反应",
+                equation: "NH₃ + HCl = NH₄Cl",
+                type: "combination",
+                examPoints: ["高考考点：白烟，互相检验气体", "浓盐酸浓氨水靠近冒白烟", "参考：人教版必修第二册P17"]
+            },
+            {
+                description: "实验室制氨气",
+                equation: "2NH₄Cl + Ca(OH)₂ △ CaCl₂ + 2NH₃↑ + 2H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：固固加热型，向下排空气法收集", "碱石灰干燥，不能用浓硫酸/CaCl₂干燥", "参考：人教版必修第二册P17"]
+            },
+            {
+                description: "铜与浓硝酸反应",
+                equation: "Cu + 4HNO₃(浓) = Cu(NO₃)₂ + 2NO₂↑ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：浓硝酸还原产物NO₂，不需要加热", "离子方程式：Cu + 4H⁺ + 2NO₃⁻ = Cu²⁺ + 2NO₂↑ + 2H₂O", "参考：人教版必修第二册P19"]
+            },
+            {
+                description: "铜与稀硝酸反应",
+                equation: "3Cu + 8HNO₃(稀) = 3Cu(NO₃)₂ + 2NO↑ + 4H₂O",
+                type: "other",
+                examPoints: ["高考考点：稀硝酸还原产物NO，配平3-8-3-2-4", "离子方程式：3Cu + 8H⁺ + 2NO₃⁻ = 3Cu²⁺ + 2NO↑ + 4H₂O", "参考：人教版必修第二册P19"]
+            },
+            {
+                description: "硝酸见光分解",
+                equation: "4HNO₃ 光照/△ 4NO₂↑ + O₂↑ + 2H₂O",
+                type: "decomposition",
+                examPoints: ["高考考点：棕色试剂瓶避光保存原因", "浓硝酸变黄是因为溶解了NO₂", "参考：人教版必修第二册P20"]
+            },
+            // ==========【高中有机化学反应 原有保留】 ==========
+            // --- 取代反应 substitute ---
+            {
+                description: "甲烷与氯气光照取代（第一步）",
+                equation: "CH₄ + Cl₂ --光照--> CH₃Cl + HCl",
+                type: "substitute",
+                examPoints: ["高考考点：自由基取代，必须光照", "连锁反应，四种氯代产物混合物", "产物CH₃Cl气体，其余油状液体", "参考：人教版选择性必修3P34"]
+            },
+            {
+                description: "苯与液溴溴代反应",
+                equation: "C₆H₆ + Br₂ --FeBr₃--> C₆H₅Br + HBr",
+                type: "substitute",
+                examPoints: ["高考考点：液溴不是溴水，FeBr₃催化剂", "苯环上取代，溴苯无色油状液体", "参考：人教版选择性必修3P47"]
+            },
+            {
+                description: "苯与浓硝酸硝化反应",
+                equation: "C₆H₆ + HNO₃(浓) --浓硫酸,△--> C₆H₅NO₂ + H₂O",
+                type: "substitute",
+                examPoints: ["高考考点：50-60℃水浴加热，浓硫酸催化吸水", "硝基苯苦杏仁味，有毒", "参考：人教版选择性必修3P48"]
+            },
+            {
+                description: "溴乙烷水解（NaOH水溶液）",
+                equation: "CH₃CH₂Br + NaOH --H₂O,△--> CH₃CH₂OH + NaBr",
+                type: "substitute",
+                examPoints: ["高考考点：卤代烃水解条件：NaOH水溶液加热", "生成醇，对比消去反应（NaOH醇溶液）", "参考：人教版选择性必修3P65"]
+            },
+            {
+                description: "乙醇与乙酸酯化反应",
+                equation: "CH₃COOH + C₂H₅OH ⇌[浓硫酸,△] CH₃COOC₂H₅ + H₂O",
+                type: "substitute",
+                examPoints: ["高考考点：酯化属于取代反应，可逆", "浓硫酸催化剂+吸水剂，饱和Na₂CO₃吸收", "酸脱羟基醇脱氢", "参考：人教版选择性必修3P83"]
+            },
+            // --- 加成反应 addition ---
+            {
+                description: "乙烯与溴加成",
+                equation: "CH₂=CH₂ + Br₂ → CH₂BrCH₂Br",
+                type: "addition",
+                examPoints: ["高考考点：碳碳双键加成，溴水褪色", "鉴别烷烃和烯烃：溴水/KMnO₄", "无小分子生成，只上不下", "参考：人教版选择性必修3P40"]
+            },
+            {
+                description: "乙烯与氢气加成",
+                equation: "CH₂=CH₂ + H₂ --Ni,△--> CH₃CH₃",
+                type: "addition",
+                examPoints: ["高考考点：Ni催化剂加热，不饱和变饱和", "油脂氢化：液态油变半固态脂肪", "参考：人教版选择性必修3P41"]
+            },
+            {
+                description: "乙烯与水加成制乙醇",
+                equation: "CH₂=CH₂ + H₂O --催化剂,高温高压--> CH₃CH₂OH",
+                type: "addition",
+                examPoints: ["高考考点：工业制乙醇方法之一", "对比：发酵法、卤代烃水解法", "参考：人教版选择性必修3P41"]
+            },
+            {
+                description: "乙炔与溴加成（完全）",
+                equation: "CH≡CH + 2Br₂ → CHBr₂CHBr₂",
+                type: "addition",
+                examPoints: ["高考考点：三键可两次加成", "溴水褪色，鉴别不饱和键", "参考：人教版选择性必修3P52"]
+            },
+            {
+                description: "乙醛与氢气加成",
+                equation: "CH₃CHO + H₂ --Ni,△--> CH₃CH₂OH",
+                type: "addition",
+                examPoints: ["高考考点：醛基加氢还原为醇", "注意：羧基、酯基不能与H₂加成", "参考：人教版选择性必修3P76"]
+            },
+            {
+                description: "苯与氢气加成",
+                equation: "C₆H₆ + 3H₂ --Ni,△--> C₆H₁₂（环己烷）",
+                type: "addition",
+                examPoints: ["高考考点：苯环特殊，1mol苯加3mol H₂", "苯的不饱和性，但不能使溴水褪色（萃取）", "参考：人教版选择性必修3P49"]
+            },
+            // --- 消去反应 eliminate ---
+            {
+                description: "溴乙烷消去反应（NaOH醇溶液）",
+                equation: "CH₃CH₂Br + NaOH --醇,△--> CH₂=CH₂↑ + NaBr + H₂O",
+                type: "eliminate",
+                examPoints: ["高考考点：条件：NaOH醇溶液加热（和水解严格区分）", "邻碳有H才能消去", "生成不饱和键，脱下小分子", "参考：人教版选择性必修3P66"]
+            },
+            {
+                description: "乙醇消去制乙烯",
+                equation: "CH₃CH₂OH --浓硫酸,170℃--> CH₂=CH₂↑ + H₂O",
+                type: "eliminate",
+                examPoints: ["高考考点：温度必须170℃，140℃生成乙醚副产物", "浓硫酸催化脱水，碎瓷片防暴沸", "NaOH溶液除SO₂/CO₂杂质", "参考：人教版选择性必修3P61"]
+            },
+            // --- 加聚反应 polyadd ---
+            {
+                description: "乙烯加聚制聚乙烯",
+                equation: "n CH₂=CH₂ --催化剂--> -[-CH₂-CH₂-]n-",
+                type: "polyadd",
+                examPoints: ["高考考点：加聚无小分子生成，双键打开", "单体：CH₂=CH₂；链节：-CH₂-CH₂-", "聚乙烯无双键，不能使溴水褪色", "参考：人教版选择性必修3P114"]
+            },
+            {
+                description: "氯乙烯加聚制聚氯乙烯",
+                equation: "n CH₂=CHCl --催化剂--> -[-CH₂-CHCl-]n-",
+                type: "polyadd",
+                examPoints: ["高考考点：PVC塑料，单体CH₂=CHCl", "聚氯乙烯有毒，不能包装食品", "参考：人教版选择性必修3P115"]
+            },
+            {
+                description: "丙烯加聚制聚丙烯",
+                equation: "n CH₂=CHCH₃ --催化剂--> -[-CH₂-CH(CH₃)-]n-",
+                type: "polyadd",
+                examPoints: ["高考考点：PP塑料，单体丙烯", "判断单体方法：主链每两个碳断开还原双键", "参考：人教版选择性必修3P115"]
+            },
+            // --- 缩聚反应 polycond ---
+            {
+                description: "对苯二甲酸与乙二醇缩聚（PET）",
+                equation: "n HOOC-C₆H₄-COOH + n HOCH₂CH₂OH --催化剂--> H-[-OCH₂CH₂OOC-C₆H₄-CO-]n-OH + (2n-1)H₂O",
+                type: "polycond",
+                examPoints: ["高考考点：缩聚生成小分子H₂O", "涤纶，聚酯纤维，端基要写完整", "单体：对苯二甲酸 + 乙二醇", "参考：人教版选择性必修3P116"]
+            },
+            {
+                description: "甘氨酸缩聚成多肽",
+                equation: "n H₂NCH₂COOH --催化剂--> H-[-NHCH₂CO-]n-OH + (n-1)H₂O",
+                type: "polycond",
+                examPoints: ["高考考点：氨基酸缩聚成蛋白质", "肽键：-CO-NH-，脱水缩合", "参考：人教版选择性必修3P121"]
+            },
+            {
+                description: "苯酚与甲醛缩聚制酚醛树脂",
+                equation: "n C₆H₅OH + n HCHO --催化剂--> H-[-C₆H₃OH-CH₂-]n-OH + (n-1)H₂O",
+                type: "polycond",
+                examPoints: ["高考考点：酸催化线型，碱催化体型", "酚醛树脂，电木材料", "参考：人教版选择性必修3P118"]
+            },
+            // --- 有机氧化还原（other类） ---
+            {
+                description: "乙醛银镜反应",
+                equation: "CH₃CHO + 2[Ag(NH₃)₂]OH --水浴△--> CH₃COONH₄ + 2Ag↓ + 3NH₃ + H₂O",
+                type: "other",
+                examPoints: ["高考考点：醛基检验，水浴加热", "银氨溶液现配现用，试管内壁银镜", "1mol -CHO生成2mol Ag", "参考：人教版选择性必修3P77"]
+            },
+            {
+                description: "乙醛与新制氢氧化铜反应",
+                equation: "CH₃CHO + 2Cu(OH)₂ + NaOH --△--> CH₃COONa + Cu₂O↓ + 3H₂O",
+                type: "other",
+                examPoints: ["高考考点：砖红色沉淀Cu₂O，碱性条件", "糖尿病检验原理，直接加热煮沸", "参考：人教版选择性必修3P78"]
+            },
+            {
+                description: "乙醇催化氧化",
+                equation: "2CH₃CH₂OH + O₂ --Cu/Ag,△--> 2CH₃CHO + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：Cu作催化剂，先生成CuO再被还原", "现象：铜丝黑→红，刺激性气味", "参考：人教版选择性必修3P60"]
+            },
+            {
+                description: "乙酸乙酯酸性水解",
+                equation: "CH₃COOC₂H₅ + H₂O ⇌[稀H₂SO₄] CH₃COOH + C₂H₅OH",
+                type: "substitute",
+                examPoints: ["高考考点：酸性水解可逆，不完全", "碱性水解完全：CH₃COOC₂H₅ + NaOH → CH₃COONa + C₂H₅OH", "参考：人教版选择性必修3P86"]
+            },
+
+            // ========== 新增补充方程式 高考高频考点 ==========
+            // --- 钠及其化合物 补充 ---
+            {
+                description: "钠常温下与氧气反应",
+                equation: "4Na + O₂ = 2Na₂O",
+                type: "combination",
+                examPoints: ["高考考点：常温生成白色固体Na₂O，加热生成淡黄色Na₂O₂", "条件不同产物不同", "参考：人教版必修第一册P34"]
+            },
+            {
+                description: "氧化钠与水反应",
+                equation: "Na₂O + H₂O = 2NaOH",
+                type: "combination",
+                examPoints: ["高考考点：碱性氧化物与水反应生成碱", "对比Na₂O₂与水反应有O₂放出", "参考：人教版必修第一册P35"]
+            },
+            {
+                description: "氧化钠与二氧化碳反应",
+                equation: "Na₂O + CO₂ = Na₂CO₃",
+                type: "combination",
+                examPoints: ["高考考点：碱性氧化物与酸性氧化物反应生成盐", "对比Na₂O₂反应有O₂生成", "参考：人教版必修第一册P36"]
+            },
+            {
+                description: "碳酸钠溶液中通入二氧化碳",
+                equation: "Na₂CO₃ + CO₂ + H₂O = 2NaHCO₃",
+                type: "combination",
+                examPoints: ["高考考点：除杂：NaHCO₃溶液中混有Na₂CO₃通CO₂", "饱和溶液中会析出NaHCO₃晶体", "参考：人教版必修第一册P47"]
+            },
+            {
+                description: "碳酸氢钠与氢氧化钠反应",
+                equation: "NaHCO₃ + NaOH = Na₂CO₃ + H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：酸式盐与碱反应生成正盐", "除杂：Na₂CO₃固体中混NaHCO₃用加热法，溶液中加NaOH", "参考：人教版必修第一册P48"]
+            },
+            {
+                description: "钠与硫酸铜溶液反应",
+                equation: "2Na + 2H₂O + CuSO₄ = Cu(OH)₂↓ + Na₂SO₄ + H₂↑",
+                type: "other",
+                examPoints: ["高考考点：钠不能置换出Cu，先与水反应再与盐反应", "现象：有气泡、蓝色沉淀", "参考：人教版必修第一册P35拓展"]
+            },
+
+            // --- 铝及其化合物 补充 ---
+            {
+                description: "偏铝酸钠溶液中通入少量二氧化碳",
+                equation: "2NaAlO₂ + CO₂ + 3H₂O = 2Al(OH)₃↓ + Na₂CO₃",
+                type: "other",
+                examPoints: ["高考考点：生成Al(OH)₃沉淀，CO₂少量生成正盐", "Al(OH)₃不溶于弱酸碳酸", "参考：人教版必修第一册P77拓展"]
+            },
+            {
+                description: "偏铝酸钠溶液中通入过量二氧化碳",
+                equation: "NaAlO₂ + CO₂ + 2H₂O = Al(OH)₃↓ + NaHCO₃",
+                type: "other",
+                examPoints: ["高考考点：CO₂过量生成酸式盐，沉淀不溶解", "工业制备Al(OH)₃方法之一", "参考：人教版必修第一册P77拓展"]
+            },
+            {
+                description: "氯化铝与少量氢氧化钠反应",
+                equation: "AlCl₃ + 3NaOH = Al(OH)₃↓ + 3NaCl",
+                type: "double-displacement",
+                examPoints: ["高考考点：碱少量生成沉淀，碱过量沉淀溶解", "互滴现象不同，可用于鉴别", "参考：人教版必修第一册P76"]
+            },
+            {
+                description: "氯化铝与过量氢氧化钠反应",
+                equation: "AlCl₃ + 4NaOH = NaAlO₂ + 3NaCl + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：Al(OH)₃溶于强碱，总反应式", "离子方程式：Al³⁺ + 4OH⁻ = AlO₂⁻ + 2H₂O", "参考：人教版必修第一册P76"]
+            },
+            {
+                description: "铝热反应（铝与氧化铁）",
+                equation: "2Al + Fe₂O₃ 高温 Al₂O₃ + 2Fe",
+                type: "replacement",
+                examPoints: ["高考考点：铝热反应，焊接钢轨、冶炼难熔金属", "镁条引燃，氯酸钾助燃", "参考：人教版必修第一册P73"]
+            },
+            {
+                description: "氢氧化铝受热分解",
+                equation: "2Al(OH)₃ △ Al₂O₃ + 3H₂O",
+                type: "decomposition",
+                examPoints: ["高考考点：难溶性氢氧化物受热分解生成氧化物和水", "工业制备纯净Al₂O₃", "参考：人教版必修第一册P76"]
+            },
+
+            // --- 铁及其化合物 补充 ---
+            {
+                description: "氢氧化铁受热分解",
+                equation: "2Fe(OH)₃ △ Fe₂O₃ + 3H₂O",
+                type: "decomposition",
+                examPoints: ["高考考点：难溶性碱受热分解规律", "红棕色固体生成", "参考：人教版必修第一册P81"]
+            },
+            {
+                description: "硫酸亚铁与氢氧化钠反应",
+                equation: "FeSO₄ + 2NaOH = Fe(OH)₂↓ + Na₂SO₄",
+                type: "double-displacement",
+                examPoints: ["高考考点：生成白色沉淀，迅速变灰绿最终红褐", "制备Fe(OH)₂需隔绝空气", "参考：人教版必修第一册P80"]
+            },
+            {
+                description: "氯化铁与硫氰化钾反应",
+                equation: "FeCl₃ + 3KSCN = Fe(SCN)₃ + 3KCl",
+                type: "other",
+                examPoints: ["高考考点：溶液变血红色，检验Fe³⁺的特征反应", "离子方程式：Fe³⁺ + 3SCN⁻ = Fe(SCN)₃", "参考：人教版必修第一册P82"]
+            },
+            {
+                description: "铁与过量稀硝酸反应",
+                equation: "Fe + 4HNO₃(稀) = Fe(NO₃)₃ + NO↑ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：硝酸过量生成Fe³⁺，还原产物NO", "铁不足产物为三价铁", "参考：人教版必修第二册P20拓展"]
+            },
+            {
+                description: "过量铁粉与稀硝酸反应",
+                equation: "3Fe + 8HNO₃(稀) = 3Fe(NO₃)₂ + 2NO↑ + 4H₂O",
+                type: "other",
+                examPoints: ["高考考点：铁粉过量生成Fe²⁺，Fe + 2Fe³⁺ = 3Fe²⁺", "量不同产物不同", "参考：人教版必修第二册P20拓展"]
+            },
+            {
+                description: "酸性高锰酸钾与氯化亚铁反应",
+                equation: "10FeSO₄ + 2KMnO₄ + 8H₂SO₄ = 5Fe₂(SO₄)₃ + K₂SO₄ + 2MnSO₄ + 8H₂O",
+                type: "other",
+                examPoints: ["高考考点：紫色酸性KMnO₄溶液褪色，检验Fe²⁺", "离子方程式：5Fe²⁺ + MnO₄⁻ + 8H⁺ = 5Fe³⁺ + Mn²⁺ + 4H₂O", "高考氧化还原配平高频"]
+            },
+
+            // --- 硅及其化合物 补充 ---
+            {
+                description: "硅与氢氧化钠溶液反应",
+                equation: "Si + 2NaOH + H₂O = Na₂SiO₃ + 2H₂↑",
+                type: "other",
+                examPoints: ["高考考点：硅与强碱反应放H₂，类似铝", "水是氧化剂，NaOH不是", "参考：人教版必修第二册P47拓展"]
+            },
+            {
+                description: "硅酸钠溶液与盐酸反应",
+                equation: "Na₂SiO₃ + 2HCl = H₂SiO₃↓ + 2NaCl",
+                type: "double-displacement",
+                examPoints: ["高考考点：生成白色胶状沉淀硅酸", "强酸制弱酸，证明酸性HCl > H₂SiO₃", "参考：人教版必修第二册P46"]
+            },
+            {
+                description: "硅酸受热分解",
+                equation: "H₂SiO₃ △ SiO₂ + H₂O",
+                type: "decomposition",
+                examPoints: ["高考考点：难溶性弱酸受热分解", "硅酸脱水生成硅胶", "参考：人教版必修第二册P46"]
+            },
+            {
+                description: "制玻璃主要反应（碳酸钠与二氧化硅）",
+                equation: "Na₂CO₃ + SiO₂ 高温 Na₂SiO₃ + CO₂↑",
+                type: "other",
+                examPoints: ["高考考点：玻璃工业反应，高温下弱酸酐制强酸酐", "玻璃原料：纯碱、石灰石、石英", "参考：人教版必修第二册P48拓展"]
+            },
+            {
+                description: "制玻璃主要反应（碳酸钙与二氧化硅）",
+                equation: "CaCO₃ + SiO₂ 高温 CaSiO₃ + CO₂↑",
+                type: "other",
+                examPoints: ["高考考点：玻璃工业核心反应之一", "玻璃主要成分：Na₂SiO₃、CaSiO₃、SiO₂", "参考：人教版必修第二册P48拓展"]
+            },
+
+            // --- 氯、卤素 补充 ---
+            {
+                description: "次氯酸见光分解",
+                equation: "2HClO 光照 2HCl + O₂↑",
+                type: "decomposition",
+                examPoints: ["高考考点：HClO不稳定，氯水久置失效变为稀盐酸", "新制氯水需棕色试剂瓶避光保存", "参考：人教版必修第一册P42"]
+            },
+            {
+                description: "漂白粉在空气中失效",
+                equation: "Ca(ClO)₂ + CO₂ + H₂O = CaCO₃↓ + 2HClO、2HClO 光照 2HCl + O₂↑",
+                type: "other",
+                examPoints: ["高考考点：漂白粉密封保存原因，遇空气失效", "强酸制弱酸：碳酸酸性强于次氯酸", "参考：人教版必修第一册P43"]
+            },
+            {
+                description: "氯气与溴化钠溶液反应",
+                equation: "Cl₂ + 2NaBr = 2NaCl + Br₂",
+                type: "replacement",
+                examPoints: ["高考考点：卤素单质置换，氧化性Cl₂ > Br₂ > I₂", "溶液由无色变橙黄色", "参考：人教版必修第一册P45"]
+            },
+            {
+                description: "溴与碘化钾溶液反应",
+                equation: "Br₂ + 2KI = 2KBr + I₂",
+                type: "replacement",
+                examPoints: ["高考考点：卤素氧化性递变，Br₂ > I₂", "淀粉遇生成的I₂变蓝", "参考：人教版必修第一册P45"]
+            },
+            {
+                description: "氯气与碘化钾溶液反应",
+                equation: "Cl₂ + 2KI = 2KCl + I₂",
+                type: "replacement",
+                examPoints: ["高考考点：湿润淀粉KI试纸检验Cl₂，试纸变蓝", "氧化性Cl₂ > I₂", "参考：人教版必修第一册P45"]
+            },
+
+            // --- 硫及其化合物 补充 ---
+            {
+                description: "二氧化硫与氯水反应",
+                equation: "SO₂ + Cl₂ + 2H₂O = H₂SO₄ + 2HCl",
+                type: "other",
+                examPoints: ["高考考点：两种漂白剂混合失效，漂白性消失", "离子方程式：SO₂ + Cl₂ + 2H₂O = 4H⁺ + SO₄²⁻ + 2Cl⁻", "高考高频氧化还原", "参考：人教版必修第二册P37拓展"]
+            },
+            {
+                description: "二氧化硫与溴水反应",
+                equation: "SO₂ + Br₂ + 2H₂O = H₂SO₄ + 2HBr",
+                type: "other",
+                examPoints: ["高考考点：溴水橙色褪去，体现SO₂还原性不是漂白性", "鉴别SO₂与乙烯：用品红，不能用溴水/高锰酸钾", "参考：人教版必修第二册P36"]
+            },
+            {
+                description: "亚硫酸钠与硫酸反应",
+                equation: "Na₂SO₃ + H₂SO₄(浓) = Na₂SO₄ + SO₂↑ + H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：实验室制SO₂的原理", "强酸制弱酸，用较浓硫酸", "参考：人教版必修第二册P35拓展"]
+            },
+            {
+                description: "硫化氢在氧气中完全燃烧",
+                equation: "2H₂S + 3O₂ 点燃 2SO₂ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：完全燃烧生成SO₂，淡蓝色火焰", "不完全燃烧生成S单质", "参考：人教版必修第二册P36拓展"]
+            },
+            {
+                description: "三氧化硫与水反应",
+                equation: "SO₃ + H₂O = H₂SO₄",
+                type: "combination",
+                examPoints: ["高考考点：工业制硫酸最后一步，实际用98.3%浓硫酸吸收", "剧烈放热，形成酸雾", "参考：人教版必修第二册P38"]
+            },
+
+            // --- 氮及其化合物 补充 ---
+            {
+                description: "氮气与氧气放电反应",
+                equation: "N₂ + O₂ 放电/高温 2NO",
+                type: "combination",
+                examPoints: ["高考考点：自然固氮，雷雨发庄稼原理", "NO无色气体，极易被氧化", "参考：人教版必修第二册P13"]
+            },
+            {
+                description: "一氧化氮与氧气反应",
+                equation: "2NO + O₂ = 2NO₂",
+                type: "combination",
+                examPoints: ["高考考点：无色气体变红棕色，检验NO的方法", "NO不能排空气法收集", "参考：人教版必修第二册P14"]
+            },
+            {
+                description: "二氧化氮与水反应",
+                equation: "3NO₂ + H₂O = 2HNO₃ + NO",
+                type: "other",
+                examPoints: ["高考考点：歧化反应，红棕色气体溶于水剩无色气体", "工业制硝酸反应之一", "参考：人教版必修第二册P15"]
+            },
+            {
+                description: "氨气的催化氧化",
+                equation: "4NH₃ + 5O₂ 催化剂,△ 4NO + 6H₂O",
+                type: "other",
+                examPoints: ["高考考点：工业制硝酸第一步，氨的催化氧化", "Pt-Rh催化剂，放热反应", "参考：人教版必修第二册P18"]
+            },
+            {
+                description: "氯化铵受热分解",
+                equation: "NH₄Cl △ NH₃↑ + HCl↑",
+                type: "decomposition",
+                examPoints: ["高考考点：铵盐受热易分解，不是升华", "冷却后又化合生成NH₄Cl白烟", "参考：人教版必修第二册P17"]
+            },
+            {
+                description: "铵根离子检验（与氢氧化钠共热）",
+                equation: "NH₄Cl + NaOH △ NaCl + NH₃↑ + H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：湿润红色石蕊试纸变蓝，检验NH₄⁺", "离子方程式：NH₄⁺ + OH⁻ △ NH₃↑ + H₂O", "参考：人教版必修第二册P17"]
+            },
+            {
+                description: "二氧化氮与氧气混合溶于水",
+                equation: "4NO₂ + O₂ + 2H₂O = 4HNO₃",
+                type: "other",
+                examPoints: ["高考考点：氮氧化物溶于水计算，体积比4:1恰好完全反应", "硝酸工业尾气处理", "参考：人教版必修第二册P16拓展"]
+            },
+            {
+                description: "一氧化氮与氧气混合溶于水",
+                equation: "4NO + 3O₂ + 2H₂O = 4HNO₃",
+                type: "other",
+                examPoints: ["高考考点：氮氧化物溶于水计算，体积比4:3恰好完全反应", "高考计算高频考点", "参考：人教版必修第二册P16拓展"]
+            },
+
+            // --- 有机化学 补充 ---
+            // 烷烃
+            {
+                description: "乙烷与氯气光照取代（第一步）",
+                equation: "CH₃CH₃ + Cl₂ --光照--> CH₃CH₂Cl + HCl",
+                type: "substitute",
+                examPoints: ["高考考点：烷烃特征反应，光照条件", "多步取代，产物混合物", "参考：人教版选择性必修3P35"]
+            },
+            {
+                description: "十六烷催化裂化",
+                equation: "C₁₆H₃₄ --催化剂,高温高压--> C₈H₁₈ + C₈H₁₆",
+                type: "other",
+                examPoints: ["高考考点：石油裂化，提高汽油产量和质量", "裂化生成烯烃和烷烃", "参考：人教版选择性必修3P37"]
+            },
+            // 烯烃
+            {
+                description: "丙烯与溴加成",
+                equation: "CH₃CH=CH₂ + Br₂ → CH₃CHBrCH₂Br",
+                type: "addition",
+                examPoints: ["高考考点：不对称烯烃加成，溴水褪色", "碳碳双键性质", "参考：人教版选择性必修3P41"]
+            },
+            {
+                description: "1,3-丁二烯与溴1,4-加成",
+                equation: "CH₂=CH-CH=CH₂ + Br₂ → CH₂Br-CH=CH-CH₂Br",
+                type: "addition",
+                examPoints: ["高考考点：共轭二烯烃1,4-加成，低温1,2-加成为主，高温1,4-加成为主", "二烯烃性质", "参考：人教版选择性必修3P43拓展"]
+            },
+            // 炔烃
+            {
+                description: "乙炔与氯化氢加成（制氯乙烯）",
+                equation: "CH≡CH + HCl --催化剂,△--> CH₂=CHCl",
+                type: "addition",
+                examPoints: ["高考考点：1:1加成生成氯乙烯，聚氯乙烯单体", "工业制PVC原料", "参考：人教版选择性必修3P53"]
+            },
+            // 芳香烃
+            {
+                description: "甲苯与浓硝酸硝化（制TNT）",
+                equation: "C₆H₅CH₃ + 3HNO₃(浓) --浓硫酸,△--> C₆H₂(NO₂)₃CH₃ + 3H₂O",
+                type: "substitute",
+                examPoints: ["高考考点：甲基使苯环邻对位活化，生成三硝基甲苯", "TNT烈性炸药", "参考：人教版选择性必修3P50"]
+            },
+            {
+                description: "甲苯被酸性高锰酸钾氧化",
+                equation: "C₆H₅CH₃ --酸性KMnO₄--> C₆H₅COOH",
+                type: "other",
+                examPoints: ["高考考点：苯的同系物侧链被氧化，溶液紫色褪去", "鉴别苯与甲苯的方法", "参考：人教版选择性必修3P50"]
+            },
+            {
+                description: "苯的磺化反应",
+                equation: "C₆H₆ + H₂SO₄(浓) △ C₆H₅SO₃H + H₂O",
+                type: "substitute",
+                examPoints: ["高考考点：苯环上氢被磺酸基取代，属于取代反应", "可逆反应", "参考：人教版选择性必修3P48拓展"]
+            },
+            // 卤代烃 补充
+            {
+                description: "1,2-二溴乙烷水解",
+                equation: "CH₂BrCH₂Br + 2NaOH --H₂O,△--> HOCH₂CH₂OH + 2NaBr",
+                type: "substitute",
+                examPoints: ["高考考点：二卤代烃水解生成二元醇", "卤代烃水解规律", "参考：人教版选择性必修3P65拓展"]
+            },
+            // 醇 补充
+            {
+                description: "乙醇与钠反应",
+                equation: "2CH₃CH₂OH + 2Na → 2CH₃CH₂ONa + H₂↑",
+                type: "replacement",
+                examPoints: ["高考考点：羟基氢被置换，反应比水缓和", "1mol羟基生成0.5mol H₂，NA题型", "参考：人教版选择性必修3P59"]
+            },
+            {
+                description: "乙醇分子间脱水成乙醚",
+                equation: "2CH₃CH₂OH --浓硫酸,140℃--> CH₃CH₂OCH₂CH₃ + H₂O",
+                type: "substitute",
+                examPoints: ["高考考点：温度不同产物不同，170℃消去，140℃取代成醚", "制乙烯副反应", "参考：人教版选择性必修3P61"]
+            },
+            {
+                description: "乙醇与氢溴酸取代",
+                equation: "CH₃CH₂OH + HBr △ CH₃CH₂Br + H₂O",
+                type: "substitute",
+                examPoints: ["高考考点：羟基被溴原子取代，生成卤代烃", "醇的取代反应", "参考：人教版选择性必修3P60拓展"]
+            },
+            // 酚 补充
+            {
+                description: "苯酚与氢氧化钠反应",
+                equation: "C₆H₅OH + NaOH → C₆H₅ONa + H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：苯酚弱酸性，俗称石炭酸，不能使指示剂变色", "浊液变澄清", "参考：人教版选择性必修3P69"]
+            },
+            {
+                description: "苯酚钠溶液中通入二氧化碳",
+                equation: "C₆H₅ONa + CO₂ + H₂O → C₆H₅OH + NaHCO₃",
+                type: "other",
+                examPoints: ["高考考点：强酸制弱酸，酸性：H₂CO₃ > 苯酚 > HCO₃⁻", "无论CO₂多少都生成NaHCO₃", "参考：人教版选择性必修3P70"]
+            },
+            {
+                description: "苯酚与浓溴水反应",
+                equation: "C₆H₅OH + 3Br₂ → C₆H₂Br₃OH↓ + 3HBr",
+                type: "substitute",
+                examPoints: ["高考考点：生成白色三溴苯酚沉淀，检验苯酚", "羟基使苯环邻对位活化", "参考：人教版选择性必修3P70"]
+            },
+            // 醛 补充
+            {
+                description: "乙醛催化氧化制乙酸",
+                equation: "2CH₃CHO + O₂ --催化剂,△--> 2CH₃COOH",
+                type: "other",
+                examPoints: ["高考考点：醛氧化为羧酸，工业制乙酸", "醛基还原性", "参考：人教版选择性必修3P76"]
+            },
+            {
+                description: "甲醛与银氨溶液反应",
+                equation: "HCHO + 4[Ag(NH₃)₂]OH --水浴△--> (NH₄)₂CO₃ + 4Ag↓ + 6NH₃ + 2H₂O",
+                type: "other",
+                examPoints: ["高考考点：甲醛相当于二元醛，1mol HCHO生成4mol Ag", "醛基数量与银镜量的关系", "参考：人教版选择性必修3P77拓展"]
+            },
+            // 羧酸 补充
+            {
+                description: "乙酸与碳酸钠反应",
+                equation: "2CH₃COOH + Na₂CO₃ = 2CH₃COONa + CO₂↑ + H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：乙酸酸性强于碳酸，有气泡", "证明羧基酸性的实验", "参考：人教版选择性必修3P81"]
+            },
+            {
+                description: "乙酸与碳酸钙反应",
+                equation: "2CH₃COOH + CaCO₃ = (CH₃COO)₂Ca + CO₂↑ + H₂O",
+                type: "double-displacement",
+                examPoints: ["高考考点：乙酸除水垢原理", "酸性：CH₃COOH > H₂CO₃", "参考：人教版选择性必修3P81拓展"]
+            },
+            // 酯 补充
+            {
+                description: "乙酸乙酯碱性水解",
+                equation: "CH₃COOC₂H₅ + NaOH △ CH₃COONa + C₂H₅OH",
+                type: "substitute",
+                examPoints: ["高考考点：碱性水解完全，不可逆，生成羧酸盐", "皂化反应本质就是碱性水解", "参考：人教版选择性必修3P86"]
+            },
+            {
+                description: "油脂皂化反应（硬脂酸甘油酯碱性水解）",
+                equation: "(C₁₇H₃₅COO)₃C₃H₅ + 3NaOH △ 3C₁₇H₃₅COONa + C₃H₅(OH)₃",
+                type: "substitute",
+                examPoints: ["高考考点：油脂碱性水解制肥皂，产物高级脂肪酸钠+甘油", "属于取代反应，酯的水解", "参考：人教版选择性必修3P92"]
+            },
+            // 糖类
+            {
+                description: "葡萄糖银镜反应",
+                equation: "CH₂OH(CHOH)₄CHO + 2[Ag(NH₃)₂]OH --水浴△--> CH₂OH(CHOH)₄COONH₄ + 2Ag↓ + 3NH₃ + H₂O",
+                type: "other",
+                examPoints: ["高考考点：葡萄糖含醛基，还原性糖", "热水瓶镀银、制镜工业原理", "参考：人教版选择性必修3P104"]
+            },
+            {
+                description: "蔗糖水解",
+                equation: "C₁₂H₂₂O₁₁ + H₂O --稀酸/酶--> C₆H₁₂O₆ + C₆H₁₂O₆（葡萄糖+果糖）",
+                type: "substitute",
+                examPoints: ["高考考点：二糖水解，蔗糖无醛基，水解产物有还原性", "水解后需加碱中和酸再做银镜实验", "参考：人教版选择性必修3P105"]
+            },
+            {
+                description: "淀粉水解",
+                equation: "(C₆H₁₀O₅)n + nH₂O --稀酸/酶--> nC₆H₁₂O₆（葡萄糖）",
+                type: "substitute",
+                examPoints: ["高考考点：多糖水解，遇碘变蓝，水解产物葡萄糖", "检验水解程度需碘水+银氨溶液", "参考：人教版选择性必修3P106"]
+            }
+        ];
+        
+        // 设置项
+        let settings = {
+            questionCount: 5,
+            timeLimit: 4 // 分钟
+        };
+        
+        // 显示方程式总数
+        document.getElementById('totalEquations').textContent = equationLibrary.length;
+        
+        // DOM元素
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const showAnswersBtn = document.getElementById('showAnswersBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const timerElement = document.getElementById('timer');
+        const questionList = document.getElementById('questionList');
+        const answerList = document.getElementById('answerList');
+        const answerPanel = document.getElementById('answerPanel');
+        const equationLibraryContainer = document.getElementById('equationLibrary');
+        const searchBox = document.getElementById('searchBox');
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const toggleLibraryBtn = document.getElementById('toggleLibraryBtn');
+        const hideLibraryBtn = document.getElementById('hideLibraryBtn');
+        const rightPanel = document.getElementById('rightPanel');
+        const leftPanel = document.getElementById('leftPanel');
+        const questionCounter = document.getElementById('questionCounter');
+        const settingsModal = document.getElementById('settingsModal');
+        const questionCountInput = document.getElementById('questionCount');
+        const timeLimitInput = document.getElementById('timeLimit');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+        const typeIntroEl = document.getElementById('typeIntro');
+        
+        // 变量
+        let timer;
+        let timeLeft = settings.timeLimit * 60;
+        let isRunning = false;
+        let selectedQuestions = [];
+        let currentFilter = 'all';
+        let isLibraryVisible = true;
+        
+        // 更新题目数量显示
+        function updateQuestionCounter() {
+            questionCounter.textContent = `随机选取${settings.questionCount}个方程式`;
+        }
+
+        // 更新反应类型介绍
+        function updateTypeIntro(filterKey) {
+            const info = reactionIntro[filterKey];
+            if(!info) return;
+            let html = `<h4><i class="fas fa-info-circle"></i> ${info.title}</h4>`;
+            html += `<div class="intro-desc">${info.desc}</div>`;
+            if(info.formula) html += `<span class="intro-formula">${info.formula}</span>`;
+            if(info.feature) html += `<span class="intro-feature">${info.feature}</span>`;
+            typeIntroEl.innerHTML = html;
+        }
+        
+        // 初始化方程式库
+        function initEquationLibrary() {
+            equationLibraryContainer.innerHTML = '';
+            
+            // 过滤方程式
+            let filteredEquations = equationLibrary;
+            if (currentFilter !== 'all') {
+                filteredEquations = equationLibrary.filter(eq => eq.type === currentFilter);
+            }
+            
+            // 搜索过滤
+            const searchTerm = searchBox.value.toLowerCase();
+            if (searchTerm) {
+                filteredEquations = filteredEquations.filter(eq => 
+                    eq.description.toLowerCase().includes(searchTerm) || 
+                    eq.equation.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // 渲染方程式
+            filteredEquations.forEach((eq, index) => {
+                const equationItem = document.createElement('div');
+                equationItem.className = 'equation-item';
+                equationItem.innerHTML = `
+                    <div class="equation-header">
+                        <div class="equation-text">${eq.equation}</div>
+                        <span class="reaction-type ${eq.type}">${getReactionTypeName(eq.type)}</span>
+                    </div>
+                    <div class="equation-desc">${eq.description}</div>
+                    <div class="equation-footer">
+                        <div>编号: ${index + 1}</div>
+                        <button class="view-details" data-id="${index}">查看考点</button>
+                    </div>
+                    <div class="exam-points" id="exam-points-${index}">
+                        <h4><i class="fas fa-graduation-cap"></i> 考点</h4>
+                        <ul>
+                            ${eq.examPoints.map(point => `<li>${point}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                equationLibraryContainer.appendChild(equationItem);
+            });
+            
+            // 添加查看考点的事件监听
+            document.querySelectorAll('.view-details').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    const examPoints = document.getElementById(`exam-points-${id}`);
+                    
+                    if (examPoints.classList.contains('show')) {
+                        examPoints.classList.remove('show');
+                        this.textContent = '查看考点';
+                    } else {
+                        examPoints.classList.add('show');
+                        this.textContent = '隐藏考点';
+                    }
+                });
+            });
+        }
+        
+        // 开始听写
+        startBtn.addEventListener('click', () => {
+            if (isRunning) return;
+            
+            isRunning = true;
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i class="fas fa-pause"></i> 进行中';
+            startBtn.style.background = 'linear-gradient(135deg, #fdcb6e, #e17055)';
+            
+            timerElement.classList.add('pulse');
+            
+            // 随机选择题目
+            selectedQuestions = getRandomQuestions(settings.questionCount);
+            
+            // 显示问题
+            displayQuestions(selectedQuestions);
+            
+            // 隐藏答案
+            answerPanel.style.display = 'none';
+            
+            // 启动计时器
+            timeLeft = settings.timeLimit * 60;
+            updateTimerDisplay();
+            timer = setInterval(updateTimer, 1000);
+        });
+        
+        // 重置
+        resetBtn.addEventListener('click', () => {
+            clearInterval(timer);
+            isRunning = false;
+            timeLeft = settings.timeLimit * 60;
+            updateTimerDisplay();
+            
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="fas fa-play"></i> 开始听写';
+            startBtn.style.background = 'linear-gradient(135deg, #00b894, #00cec9)';
+            
+            timerElement.classList.remove('pulse');
+            
+            // 重置问题列表
+            questionList.innerHTML = `
+                <li>点击"开始听写"按钮开始练习</li>
+                <li>系统将从方程式库中随机选取${settings.questionCount}个题目</li>
+                <li>您有${settings.timeLimit}分钟时间写出这些方程式</li>
+                <li>完成后可以点击"显示答案"核对</li>
+                <li>点击"设置"可以调整题目数量和时间</li>
+            `;
+            
+            // 隐藏答案
+            answerPanel.style.display = 'none';
+        });
+        
+        // 显示答案
+        showAnswersBtn.addEventListener('click', () => {
+            if (selectedQuestions.length === 0) {
+                alert('请先开始听写练习！');
+                return;
+            }
+            
+            displayAnswers(selectedQuestions);
+            answerPanel.style.display = 'block';
+            
+            answerPanel.scrollIntoView({ behavior: 'smooth' });
+        });
+        
+        // 设置按钮
+        settingsBtn.addEventListener('click', () => {
+            questionCountInput.value = settings.questionCount;
+            timeLimitInput.value = settings.timeLimit;
+            settingsModal.classList.add('show');
+        });
+        
+        // 保存设置
+        saveSettingsBtn.addEventListener('click', () => {
+            const count = parseInt(questionCountInput.value);
+            const time = parseInt(timeLimitInput.value);
+            
+            if (count < 1 || count > 50) {
+                alert('题目数量请输入1~50之间的数字');
+                return;
+            }
+            if (time < 1 || time > 30) {
+                alert('听写时间请输入1~30之间的数字');
+                return;
+            }
+            
+            settings.questionCount = count;
+            settings.timeLimit = time;
+            timeLeft = time * 60;
+            updateTimerDisplay();
+            updateQuestionCounter();
+            
+            settingsModal.classList.remove('show');
+            
+            // 重置问题列表提示
+            if (!isRunning) {
+                questionList.innerHTML = `
+                    <li>点击"开始听写"按钮开始练习</li>
+                    <li>系统将从方程式库中随机选取${settings.questionCount}个题目</li>
+                    <li>您有${settings.timeLimit}分钟时间写出这些方程式</li>
+                    <li>完成后可以点击"显示答案"核对</li>
+                    <li>点击"设置"可以调整题目数量和时间</li>
+                `;
+            }
+        });
+        
+        // 取消设置
+        cancelSettingsBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('show');
+        });
+        
+        // 点击遮罩关闭设置
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('show');
+            }
+        });
+        
+        // 切换方程式库显示/隐藏
+        toggleLibraryBtn.addEventListener('click', () => {
+            isLibraryVisible = !isLibraryVisible;
+            if (isLibraryVisible) {
+                rightPanel.classList.remove('hidden');
+                leftPanel.classList.remove('full-width');
+            } else {
+                rightPanel.classList.add('hidden');
+                leftPanel.classList.add('full-width');
+            }
+        });
+        
+        // 隐藏方程式库按钮
+        hideLibraryBtn.addEventListener('click', () => {
+            rightPanel.classList.add('hidden');
+            leftPanel.classList.add('full-width');
+            isLibraryVisible = false;
+        });
+        
+        // 搜索框事件
+        searchBox.addEventListener('input', initEquationLibrary);
+        
+        // 过滤器按钮事件
+        filterButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                filterButtons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.getAttribute('data-filter');
+                updateTypeIntro(currentFilter);
+                initEquationLibrary();
+            });
+        });
+        
+        // 随机选择问题
+        function getRandomQuestions(count) {
+            const shuffled = [...equationLibrary].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, count);
+        }
+        
+        // 显示问题
+        function displayQuestions(questions) {
+            questionList.innerHTML = '';
+            
+            questions.forEach((q, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `${q.description} <span class="reaction-type ${q.type}">${getReactionTypeName(q.type)}</span>`;
+                questionList.appendChild(li);
+            });
+        }
+        
+        // 显示答案
+        function displayAnswers(questions) {
+            answerList.innerHTML = '';
+            
+            questions.forEach((q, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <strong>${index + 1}. ${q.description}</strong><br>
+                    <div class="equation">${q.equation}</div>
+                    <span class="reaction-type ${q.type}">${getReactionTypeName(q.type)}</span>
+                `;
+                answerList.appendChild(li);
+            });
+        }
+        
+        // 获取反应类型名称
+        function getReactionTypeName(type) {
+            const typeNames = {
+                'combination': '化合反应',
+                'decomposition': '分解反应',
+                'replacement': '置换反应',
+                'double-displacement': '复分解反应',
+                'substitute': '取代反应',
+                'addition': '加成反应',
+                'eliminate': '消去反应',
+                'polyadd': '加聚反应',
+                'polycond': '缩聚反应',
+                'other': '其他反应'
+            };
+            return typeNames[type] || type;
+        }
+        
+        // 更新计时器
+        function updateTimer() {
+            timeLeft--;
+            updateTimerDisplay();
+            
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                isRunning = false;
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i class="fas fa-play"></i> 开始听写';
+                startBtn.style.background = 'linear-gradient(135deg, #00b894, #00cec9)';
+                
+                timerElement.classList.remove('pulse');
+                
+                // 时间到自动显示答案
+                displayAnswers(selectedQuestions);
+                answerPanel.style.display = 'block';
+                answerPanel.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        
+        // 更新计时器显示
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft <= 30) {
+                timerElement.style.color = '#e74c3c';
+                timerElement.style.animation = 'pulse 0.8s infinite';
+            } else if (timeLeft <= 60) {
+                timerElement.style.color = '#fdcb6e';
+            } else {
+                timerElement.style.color = '#00b894';
+            }
+        }
+
+        // 鼠标跟随光晕效果
+        document.addEventListener('mousemove', function(e) {
+            const glow = document.querySelector('.mouse-glow');
+            if(glow) {
+                glow.style.left = e.clientX + 'px';
+                glow.style.top = e.clientY + 'px';
+            }
+        });
+        
+        // 初始化
+        initEquationLibrary();
+        updateTimerDisplay();
+        updateQuestionCounter();
+    </script>
+</body>
+</html>
